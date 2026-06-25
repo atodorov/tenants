@@ -52,3 +52,11 @@ class TenantFileSystemStorage(FileSystemStorage):
         except (TypeError, ValueError):
             # No %s in string; append schema name at the end
             return os.path.join(relative_root, schema_name)
+
+    def delete_for_schema(self, schema_name):
+        """
+        Deletes the storage directory and all its files for a specific schema name.
+        """
+        storage_path = self.location_for_schema(schema_name)
+        absolute_path = os.path.abspath(os.path.join(super().location, storage_path))
+        self.delete(absolute_path)

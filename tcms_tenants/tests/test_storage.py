@@ -86,6 +86,35 @@ class DefaultStorageTestCase(TenantFileSystemStorageTestCase):
     storage = default_storage
 
 
+class TenantDeleteTestCase(LoggedInTestCase):
+    @override_settings(
+        MEDIA_ROOT="apps_dir/media",
+        MEDIA_URL="/media/",
+        MULTITENANT_RELATIVE_MEDIA_ROOT="%s",
+    )
+    def test_tenant_delete_removes_media_directory(self):
+        connection.set_schema_to_public()
+        tenant = utils.get_tenant_model()(
+            schema_name="tenant_to_delete", owner=UserFactory(), name="To Delete"
+        )
+        tenant.save()
+
+        # Save a file under this tenant schema's storage
+        with utils.tenant_context(tenant):
+            file_name = default_storage.save(
+                "hello_delete.txt", ContentFile("Hello Delete")
+            )
+            self.assertTrue(default_storage.exists(file_name))
+            tenant_storage_dir = os.path.dirname(default_storage.path(file_name))
+
+        # Delete the tenant
+        tenant.delete()
+
+        # The tenant's storage directory (which includes the file) should be removed
+        self.assertFalse(default_storage.exists(file_name))
+        self.assertFalse(default_storage.exists(tenant_storage_dir))
+
+
 class LocationForSchemaTestCase(LoggedInTestCase):
     @override_settings(MULTITENANT_RELATIVE_MEDIA_ROOT="%s")
     def test_with_percent_s_format_string(self):

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024 Alexander Todorov <atodorov@otb.bg>
+# Copyright (c) 2019-2026 Alexander Todorov <atodorov@otb.bg>
 #
 # Licensed under GNU Affero General Public License v3 or later (AGPLv3+)
 # https://www.gnu.org/licenses/agpl-3.0.html
@@ -7,6 +7,7 @@ import os
 
 from django.db import models
 from django.conf import settings
+from django.core.files.storage import default_storage
 
 from django_tenants.models import TenantMixin, DomainMixin
 
@@ -30,6 +31,13 @@ class Tenant(TenantMixin):
 
     def __str__(self):
         return f"[{self.schema_name}] {self.name}"
+
+    def delete(self, *args, **kwargs):
+        # Call the original delete() first to delete DB rows and drop the schema
+        super().delete(*args, **kwargs)
+
+        # Remove the directory and all files inside
+        default_storage.delete_for_schema(self.schema_name)
 
 
 def _authorized_user_str(self):
