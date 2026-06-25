@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2025 Alexander Todorov <atodorov@otb.bg>
+# Copyright (c) 2019-2026 Alexander Todorov <atodorov@otb.bg>
 #
 # Licensed under GNU Affero General Public License v3 or later (AGPLv3+)
 # https://www.gnu.org/licenses/agpl-3.0.html
@@ -84,3 +84,29 @@ class DefaultStorageTestCase(TenantFileSystemStorageTestCase):
     """
 
     storage = default_storage
+
+
+class LocationForSchemaTestCase(LoggedInTestCase):
+    @override_settings(MULTITENANT_RELATIVE_MEDIA_ROOT="%s")
+    def test_with_percent_s_format_string(self):
+        storage = TenantFileSystemStorage()
+        self.assertEqual(storage.location_for_schema("my_tenant"), "my_tenant")
+
+    @override_settings(MULTITENANT_RELATIVE_MEDIA_ROOT="tenant_media/%s")
+    def test_with_percent_s_in_subdirectory(self):
+        storage = TenantFileSystemStorage()
+        self.assertEqual(
+            storage.location_for_schema("my_tenant"), "tenant_media/my_tenant"
+        )
+
+    @override_settings(MULTITENANT_RELATIVE_MEDIA_ROOT="shared_media")
+    def test_without_percent_s_appends_schema(self):
+        storage = TenantFileSystemStorage()
+        self.assertEqual(
+            storage.location_for_schema("my_tenant"), "shared_media/my_tenant"
+        )
+
+    @override_settings(MULTITENANT_RELATIVE_MEDIA_ROOT="")
+    def test_empty_string_appends_schema(self):
+        storage = TenantFileSystemStorage()
+        self.assertEqual(storage.location_for_schema("my_tenant"), "my_tenant")
