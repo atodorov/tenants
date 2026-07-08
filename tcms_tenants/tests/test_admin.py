@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2025 Alexander Todorov <atodorov@otb.bg>
+# Copyright (c) 2020-2026 Alexander Todorov <atodorov@otb.bg>
 #
 # Licensed under GNU Affero General Public License v3 or later (AGPLv3+)
 # https://www.gnu.org/licenses/agpl-3.0.html
@@ -339,3 +339,53 @@ class DeactivateUserTestCase(TenantGroupsTestCase):
             self.assertTrue(TenantGroup.objects.filter(name="Administrator").exists())
             self.assertTrue(TenantGroup.objects.filter(name="Tester").exists())
             self.assertTrue(TenantGroup.objects.filter(name="ProductManager").exists())
+
+
+class AddComponentAdmin(LoggedInTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        # Create users user_01..user_05 in public schema
+        cls.user_01 = UserFactory(username="user_01")
+        cls.user_02 = UserFactory(username="user_02")
+        cls.user_03 = UserFactory(username="user_03")
+        cls.user_04 = UserFactory(username="user_04")
+        cls.user_05 = UserFactory(username="user_05")
+
+        # Create second tenant
+        with utils.schema_context("public"):
+            cls.tenant2 = utils.get_tenant_model()(
+                schema_name="second_tenant", owner=cls.tester
+            )
+            cls.tenant2.save()
+
+            cls.domain2 = utils.get_tenant_domain_model()(
+                tenant=cls.tenant2, domain="second.example.com"
+            )
+            cls.domain2.save()
+
+            # Users 01 and 05 are authorized for self.tenant (same as self.tester)
+            cls.tenant.authorized_users.add(cls.user_01)
+            cls.tenant.authorized_users.add(cls.user_05)
+
+            # Users 02 and 04 are authorized for second tenant
+            cls.tenant2.authorized_users.add(cls.user_02)
+            cls.tenant2.authorized_users.add(cls.user_04)
+
+            # user_03 is not authorized for either tenant
+
+    def test_initial_owner_dropdown_contains_only_authorized_users(self):
+        response = self.client.get(reverse("admin:management_component_add"))
+
+        # Should contain: user_01, user_05, self.tester, self.tenant.owner
+        self.assertContains(response, "user_01")
+        self.assertContains(response, "user_05")
+        self.assertContains(response, self.tester.username)
+        self.assertContains(response, self.tenant.owner.username)
+
+        # Should NOT contain: user_02, user_03, user_04
+        self.assertNotContains(response, "user_02")
+        self.assertNotContains(response, "user_03")
+        self.assertNotContains(response, "user_04")
+
